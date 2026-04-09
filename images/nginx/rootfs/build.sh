@@ -122,8 +122,11 @@ get_src()
   echo "Downloading $url"
 
   curl -sSL "$url" -o "$f"
-  # TODO: Reenable checksum verification but make it smarter
-  # echo "$hash  $f" | sha256sum -c - || exit 10
+  if [ -n "$hash" ] && [ "$hash" != "SKIP" ] && [ "$hash" != "abc123" ]; then
+    echo "$hash  $f" | sha256sum -c - || exit 10
+  else
+    echo "WARNING: checksum skipped for $f (hash placeholder)" >&2
+  fi
   if [ ! -z "$dest" ]; then
         mkdir ${BUILD_PATH}/${dest}
         ARGS="-C ${BUILD_PATH}/${dest} --strip-components=1"
