@@ -30,8 +30,8 @@ controller:
     ## for backwards compatibility consider setting the full image url via the repository value below
     ## use *either* current default registry/image or repository format or installing chart by providing the values.yaml will fail
     ## repository:
-    tag: "maint-20260303-095526-ingress-nginx-005-patched-atos"
-    digest: sha256:49b32682350d9b9602dc848160c2ff39806d90ad9b93f13c68545e2846e5fb65
+    tag: "maint-20260303-095526-ingress-nginx-005-patched-cve-2026-49975-atos"
+    digest: sha256:f220215b4fa8ff5676c7a519bd310e0070dbacaab5426f880be1040d9c0b1f2f
     digestChroot: ""
     pullPolicy: IfNotPresent
     runAsNonRoot: true
