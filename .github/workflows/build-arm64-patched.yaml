@@ -20,102 +20,134 @@ env:
   REGISTRY: atosopensource
   IMAGE_NAME: ingress-nginx
   FULL_TAG: ${{ inputs.base_tag_prefix }}-${{ inputs.tag_suffix }}
-  PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
-  build-nginx-base:
-    name: Build & Push NGINX Base (amd64 + arm64)
+  # ---- NGINX Base: build per-arch on native runners ----
+  build-nginx-base-amd64:
+    name: NGINX Base (amd64)
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
-
+    timeout-minutes: 60
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
-        with:
-          platforms: arm64
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
-        with:
-          version: latest
-          platforms: ${{ env.PLATFORMS }}
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+      - uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push
+        run: |
+          cd images/nginx
+          docker build --platform linux/amd64 --network=host \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-amd64 \
+            rootfs/
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-amd64
 
-      - name: Build and push NGINX base (multi-arch)
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
-        with:
-          context: images/nginx/rootfs
-          platforms: ${{ env.PLATFORMS }}
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          network: host
-
-  build-controller:
-    name: Build & Push Controller (amd64 + arm64)
-    runs-on: ubuntu-24.04
-    needs: build-nginx-base
-    timeout-minutes: 30
-
+  build-nginx-base-arm64:
+    name: NGINX Base (arm64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
-        with:
-          platforms: arm64
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
-        with:
-          version: latest
-          platforms: ${{ env.PLATFORMS }}
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+      - uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push
+        run: |
+          cd images/nginx
+          docker build --platform linux/arm64 --network=host \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-arm64 \
+            rootfs/
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-arm64
 
-      - name: Build and push controller (multi-arch)
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+  # ---- NGINX Base: create multi-arch manifest ----
+  nginx-base-manifest:
+    name: NGINX Base Manifest
+    runs-on: ubuntu-latest
+    needs: [build-nginx-base-amd64, build-nginx-base-arm64]
+    steps:
+      - uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
-          context: rootfs
-          platforms: ${{ env.PLATFORMS }}
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}
-          build-args: |
-            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base
-            VERSION=${{ env.FULL_TAG }}
-            COMMIT_SHA=${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          network: host
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Create and push base manifest
+        run: |
+          docker manifest create ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-amd64 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-arm64
+          docker manifest push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base
 
-      - name: Inspect multi-arch manifest
+  # ---- Controller: build per-arch on native runners ----
+  build-controller-amd64:
+    name: Controller (amd64)
+    runs-on: ubuntu-24.04
+    needs: nginx-base-manifest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+      - uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push
+        run: |
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-amd64
+          docker build --platform linux/amd64 --network=host \
+            --build-arg BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-amd64 \
+            --build-arg VERSION=${{ env.FULL_TAG }} \
+            --build-arg COMMIT_SHA=${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-amd64 \
+            rootfs/
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-amd64
+
+  build-controller-arm64:
+    name: Controller (arm64)
+    runs-on: ubuntu-24.04-arm
+    needs: nginx-base-manifest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+      - uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push
+        run: |
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-arm64
+          docker build --platform linux/arm64 --network=host \
+            --build-arg BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-arm64 \
+            --build-arg VERSION=${{ env.FULL_TAG }} \
+            --build-arg COMMIT_SHA=${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-arm64-ctrl \
+            rootfs/
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-arm64-ctrl
+
+  # ---- Controller: create final multi-arch manifest ----
+  controller-manifest:
+    name: Final Multi-Arch Manifest
+    runs-on: ubuntu-latest
+    needs: [build-controller-amd64, build-controller-arm64]
+    steps:
+      - uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Create and push controller manifest
+        run: |
+          docker manifest create ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-amd64 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-arm64-ctrl
+          docker manifest push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}
+
+      - name: Inspect and summary
         run: |
           docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}
-
-      - name: Summary
-        run: |
           echo "## ✅ Multi-arch image pushed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Tag:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Platforms:** \`${{ env.PLATFORMS }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Manifest" >> $GITHUB_STEP_SUMMARY
+          echo "**Platforms:** linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
           echo '```json' >> $GITHUB_STEP_SUMMARY
           docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }} >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
