@@ -1,0 +1,123 @@
+name: Build ARM64 Patched Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_suffix:
+        description: 'Image tag suffix (e.g. patched-cve-2026-42945-cve-2026-9256-atos)'
+        required: true
+        default: 'patched-cve-2026-42945-cve-2026-9256-atos'
+      base_tag_prefix:
+        description: 'Base tag prefix (e.g. maint-20260303-095526-ingress-nginx-005)'
+        required: true
+        default: 'maint-20260303-095526-ingress-nginx-005'
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: atosopensource
+  IMAGE_NAME: ingress-nginx
+  FULL_TAG: ${{ inputs.base_tag_prefix }}-${{ inputs.tag_suffix }}
+
+jobs:
+  build-nginx-base-arm64:
+    name: Build NGINX Base (arm64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push NGINX base arm64
+        run: |
+          cd images/nginx
+          docker build --platform linux/arm64 \
+            --network=host \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-arm64 \
+            rootfs/
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-arm64
+
+  build-controller-arm64:
+    name: Build Controller (arm64)
+    runs-on: ubuntu-24.04-arm
+    needs: build-nginx-base-arm64
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull arm64 base
+        run: docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-arm64
+
+      - name: Build and push controller arm64
+        run: |
+          docker build --platform linux/arm64 \
+            --network=host \
+            --build-arg BASE_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-arm64" \
+            --build-arg VERSION="${{ env.FULL_TAG }}" \
+            --build-arg COMMIT_SHA="${{ github.sha }}" \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-arm64-ctrl \
+            rootfs/
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-arm64-ctrl
+
+  create-multiarch-manifest:
+    name: Create Multi-Arch Manifest
+    runs-on: ubuntu-latest
+    needs: build-controller-arm64
+
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifest
+        run: |
+          TAG="${{ env.FULL_TAG }}"
+          
+          # Pull both arch images to get digests
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG}
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG}-arm64-ctrl
+          
+          # Remove existing manifest if any
+          docker manifest rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG} 2>/dev/null || true
+          
+          # Create multi-arch manifest
+          docker manifest create ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG}-arm64-ctrl
+          
+          # Push manifest
+          docker manifest push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG}
+          
+          # Inspect result
+          docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${TAG}
+
+      - name: Output digest
+        run: |
+          echo "## Multi-arch manifest pushed" >> $GITHUB_STEP_SUMMARY
+          echo "Tag: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}" >> $GITHUB_STEP_SUMMARY
+          docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }} >> $GITHUB_STEP_SUMMARY
