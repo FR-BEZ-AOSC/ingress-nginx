@@ -50,7 +50,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push NGINX base (multi-arch)
-        uses: docker/build-push-action@14487ce63c7a62a4a3363519c1d2e5a8c621e5f7 # v6.16.0
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: images/nginx/rootfs
           platforms: ${{ env.PLATFORMS }}
@@ -89,7 +89,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push controller (multi-arch)
-        uses: docker/build-push-action@14487ce63c7a62a4a3363519c1d2e5a8c621e5f7 # v6.16.0
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: rootfs
           platforms: ${{ env.PLATFORMS }}
