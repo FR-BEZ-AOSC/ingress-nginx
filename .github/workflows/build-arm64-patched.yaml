@@ -37,10 +37,10 @@ jobs:
       - name: Build and push
         run: |
           cd images/nginx
-          docker build --platform linux/amd64 --network=host \
+          docker buildx build --platform linux/amd64 --network=host \
+            --push \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-amd64 \
             rootfs/
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-amd64
 
   build-nginx-base-arm64:
     name: NGINX Base (arm64)
@@ -56,10 +56,10 @@ jobs:
       - name: Build and push
         run: |
           cd images/nginx
-          docker build --platform linux/arm64 --network=host \
+          docker buildx build --platform linux/arm64 --network=host \
+            --push \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-arm64 \
             rootfs/
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-arm64
 
   # ---- NGINX Base: create multi-arch manifest ----
   nginx-base-manifest:
@@ -93,14 +93,13 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build and push
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-amd64
-          docker build --platform linux/amd64 --network=host \
+          docker buildx build --platform linux/amd64 --network=host \
             --build-arg BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-amd64 \
             --build-arg VERSION=${{ env.FULL_TAG }} \
             --build-arg COMMIT_SHA=${{ github.sha }} \
+            --push \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-amd64 \
             rootfs/
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-amd64
 
   build-controller-arm64:
     name: Controller (arm64)
@@ -116,14 +115,13 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build and push
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-arm64
-          docker build --platform linux/arm64 --network=host \
+          docker buildx build --platform linux/arm64 --network=host \
             --build-arg BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-arm64 \
             --build-arg VERSION=${{ env.FULL_TAG }} \
             --build-arg COMMIT_SHA=${{ github.sha }} \
+            --push \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-arm64-ctrl \
             rootfs/
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-arm64-ctrl
 
   # ---- Controller: create final multi-arch manifest ----
   controller-manifest:
