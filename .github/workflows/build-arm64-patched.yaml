@@ -38,6 +38,7 @@ jobs:
         run: |
           cd images/nginx
           docker buildx build --platform linux/amd64 --network=host \
+            --provenance=false \
             --push \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-amd64 \
             rootfs/
@@ -57,6 +58,7 @@ jobs:
         run: |
           cd images/nginx
           docker buildx build --platform linux/arm64 --network=host \
+            --provenance=false \
             --push \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-arm64 \
             rootfs/
@@ -97,6 +99,7 @@ jobs:
             --build-arg BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-amd64 \
             --build-arg VERSION=${{ env.FULL_TAG }} \
             --build-arg COMMIT_SHA=${{ github.sha }} \
+            --provenance=false \
             --push \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-amd64 \
             rootfs/
@@ -119,6 +122,7 @@ jobs:
             --build-arg BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-arm64 \
             --build-arg VERSION=${{ env.FULL_TAG }} \
             --build-arg COMMIT_SHA=${{ github.sha }} \
+            --provenance=false \
             --push \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-arm64-ctrl \
             rootfs/
