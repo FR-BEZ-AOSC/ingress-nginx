@@ -276,6 +276,12 @@ type Configuration struct {
 	// Default: 4 8k
 	LargeClientHeaderBuffers string `json:"large-client-header-buffers"`
 
+	// MaxHeaders limits the number of request headers accepted from clients.
+	// This helps protect against HTTP/2 memory exhaustion attacks (CVE-2026-49975).
+	// https://nginx.org/en/docs/http/ngx_http_core_module.html#max_headers
+	// Default: 1000
+	MaxHeaders int `json:"max-headers"`
+
 	// Disable all escaping
 	// https://nginx.org/en/docs/http/ngx_http_log_module.html#log_format
 	LogFormatEscapeNone bool `json:"log-format-escape-none,omitempty"`
@@ -809,6 +815,7 @@ func NewDefault() Configuration {
 		KeepAlive:                        75,
 		KeepAliveRequests:                1000,
 		LargeClientHeaderBuffers:         "4 8k",
+		MaxHeaders:                       1000,
 		LogFormatEscapeJSON:              false,
 		LogFormatStream:                  logFormatStream,
 		LogFormatUpstream:                logFormatUpstream,
