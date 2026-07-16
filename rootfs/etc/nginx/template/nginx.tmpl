@@ -270,6 +270,9 @@ http {
     client_header_buffer_size       {{ $cfg.ClientHeaderBufferSize }};
     client_header_timeout           {{ $cfg.ClientHeaderTimeout }}s;
     large_client_header_buffers     {{ $cfg.LargeClientHeaderBuffers }};
+    {{ if (gt $cfg.MaxHeaders 0) }}
+    max_headers                     {{ $cfg.MaxHeaders }};
+    {{ end }}
     client_body_buffer_size         {{ $cfg.ClientBodyBufferSize }};
     client_body_timeout             {{ $cfg.ClientBodyTimeout }}s;
 
