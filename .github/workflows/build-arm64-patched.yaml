@@ -38,10 +38,7 @@ jobs:
         run: |
           cd images/nginx
           docker buildx build --platform linux/amd64 --network=host \
-<<<<<<< HEAD
             --provenance=false \
-=======
->>>>>>> origin/main
             --push \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-amd64 \
             rootfs/
@@ -61,10 +58,7 @@ jobs:
         run: |
           cd images/nginx
           docker buildx build --platform linux/arm64 --network=host \
-<<<<<<< HEAD
             --provenance=false \
-=======
->>>>>>> origin/main
             --push \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-arm64 \
             rootfs/
@@ -91,7 +85,6 @@ jobs:
     name: Controller (amd64)
     runs-on: ubuntu-24.04
     needs: nginx-base-manifest
-<<<<<<< HEAD
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -129,11 +122,6 @@ jobs:
             -X ${PKG}/version.REPO=${REPO_INFO}" \
             -buildvcs=false \
             -o rootfs/bin/amd64/wait-shutdown ${PKG}/cmd/waitshutdown
-=======
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
->>>>>>> origin/main
       - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
       - uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
@@ -145,10 +133,7 @@ jobs:
             --build-arg BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-amd64 \
             --build-arg VERSION=${{ env.FULL_TAG }} \
             --build-arg COMMIT_SHA=${{ github.sha }} \
-<<<<<<< HEAD
             --provenance=false \
-=======
->>>>>>> origin/main
             --push \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-amd64 \
             rootfs/
@@ -157,7 +142,6 @@ jobs:
     name: Controller (arm64)
     runs-on: ubuntu-24.04-arm
     needs: nginx-base-manifest
-<<<<<<< HEAD
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -195,11 +179,6 @@ jobs:
             -X ${PKG}/version.REPO=${REPO_INFO}" \
             -buildvcs=false \
             -o rootfs/bin/arm64/wait-shutdown ${PKG}/cmd/waitshutdown
-=======
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
->>>>>>> origin/main
       - uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
       - uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
@@ -211,10 +190,7 @@ jobs:
             --build-arg BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-base-arm64 \
             --build-arg VERSION=${{ env.FULL_TAG }} \
             --build-arg COMMIT_SHA=${{ github.sha }} \
-<<<<<<< HEAD
             --provenance=false \
-=======
->>>>>>> origin/main
             --push \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.FULL_TAG }}-arm64-ctrl \
             rootfs/
